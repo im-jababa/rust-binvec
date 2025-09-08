@@ -64,12 +64,28 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// ```
     /// 
     pub const fn new(initial_value: bool) -> Self {
-        let byte: u8 = if initial_value == true {
-            0b1111_1111
-        } else {
-            0x0000_0000
-        };
-        Self { inner: [byte; N] }
+        let mut new: Binvec<L, N> = Self { inner: [0x00; N] };
+        new.fill(initial_value);
+        new
+    }
+
+    /// Returns the length in bits of the [`Binvec`].
+    ///
+    /// ---
+    /// # Returns
+    /// The number of bits stored in the [`Binvec`].
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, false);
+    /// assert_eq!(binvec.len(), 12);
+    /// ```
+    /// 
+    pub const fn len(&self) -> usize {
+        L
     }
 
     /// Returns the bit value at the given index without performing bounds checking.
@@ -132,6 +148,209 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
             None
         }
     }
+
+    /// Sets the bit value at the given index without performing bounds checking.
+    ///
+    /// ---
+    /// # Safety
+    /// Calling this method with an out-of-bounds index is undefined behavior.
+    ///
+    /// ---
+    /// # Arguments
+    /// - `index`: The bit index to set.
+    /// - `value`: The bit value to set (`true` for 1, `false` for 0).
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let mut binvec = binvec!(12, false);
+    /// unsafe { binvec.set_unchecked(3, true); }
+    /// assert_eq!(binvec.get(3), Some(true));
+    /// ```
+    /// 
+    pub unsafe fn set_unchecked(&mut self, index: usize, value: bool) {
+        let byte_index: usize = index >> 3; // same as `index / 8`
+        let bit_offset: usize = index & 0b111; // same as `index % 8`
+        let mask: u8 = 1 << bit_offset;
+        let byte: &mut u8 = &mut self.inner[byte_index];
+        if value == true {
+            *byte |= mask;
+        } else {
+            *byte &= !mask;
+        }
+    }
+
+    /// Sets the bit value at the given index with bounds checking.
+    ///
+    /// ---
+    /// # Arguments
+    /// - `index`: The bit index to set.
+    /// - `value`: The bit value to set (`true` for 1, `false` for 0).
+    ///
+    /// ---
+    /// # Returns
+    /// - `Ok(())` if the bit was successfully set.
+    /// - `Err(())` if the index is out of bounds.
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let mut binvec = binvec!(12, false);
+    /// assert_eq!(binvec.set(5, true), Ok(()));
+    /// assert_eq!(binvec.get(5), Some(true));
+    ///
+    /// assert_eq!(binvec.set(20, true), Err(()));
+    /// ```
+    /// 
+    pub fn set(&mut self, index: usize, value: bool) -> Result<(), ()> {
+        if index < L {
+            unsafe { self.set_unchecked(index, value); }
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    /// Fills the entire [`Binvec`] with the specified bit value.
+    ///
+    /// This method sets all bits in the [`Binvec`] to either `true` (1) or `false` (0).
+    /// For bits beyond the length `L` in the last byte, those bits are cleared to zero.
+    ///
+    /// ---
+    /// # Arguments
+    /// - `value`: The bit value to fill the [`Binvec`] with (`true` for 1, `false` for 0).
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let mut binvec = binvec!(12, false);
+    /// binvec.fill(true);
+    /// assert_eq!(binvec.is_all_one(), true);
+    /// ```
+    /// 
+    pub const fn fill(&mut self, value: bool) {
+        let byte: u8 = if value == true { 0xFF } else { 0x00 };
+        let mut inner: [u8; N] = [byte; N];
+        if L > 0
+        && L % 8 != 0 {
+            let last_bits: usize = L % 8;
+            let mask: u8 = (1u8 << last_bits) - 1;
+            inner[N - 1] &= mask;
+        }
+        self.inner = inner;
+    }
+
+    /// Counts the number of bits set to `1` in the [`Binvec`].
+    ///
+    /// ---
+    /// # Returns
+    /// The total count of bits that are set to `1`.
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, true);
+    /// assert_eq!(binvec.count_ones(), 12);
+    ///
+    /// let mut binvec = binvec!(12, false);
+    /// binvec.set(3, true).unwrap();
+    /// assert_eq!(binvec.count_ones(), 1);
+    /// ```
+    /// 
+    pub const fn count_ones(&self) -> usize {
+        let mut count: usize = 0;
+        let mut i: usize = 0;
+        while i < N {
+            count += self.inner[i].count_ones() as usize;
+            i += 1;
+        }
+        count // unused value is always filled with 0
+    }
+
+    /// Counts the number of bits set to `0` in the [`Binvec`].
+    ///
+    /// ---
+    /// # Returns
+    /// The total count of bits that are set to `0`.
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, false);
+    /// assert_eq!(binvec.count_zeros(), 12);
+    ///
+    /// let mut binvec = binvec!(12, true);
+    /// binvec.set(3, false).unwrap();
+    /// assert_eq!(binvec.count_zeros(), 1);
+    /// ```
+    /// 
+    pub const fn count_zeros(&self) -> usize {
+        let mut count: usize = 0;
+        let mut i: usize = 0;
+        while i < N {
+            count += self.inner[i].count_zeros() as usize;
+            i += 1;
+        }
+        count - ((N * 8) - L) // unused value is always filled with 0
+    }
+
+    /// Checks if all bits in the [`Binvec`] are set to `1`.
+    ///
+    /// ---
+    /// # Returns
+    /// `true` if all bits that are using is `1`, otherwise `false`.
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, true);
+    /// assert_eq!(binvec.is_all_one(), true);
+    ///
+    /// let mut binvec = binvec!(12, false);
+    /// assert_eq!(binvec.is_all_one(), false);
+    /// binvec.fill(true);
+    /// assert_eq!(binvec.is_all_one(), true);
+    /// ```
+    /// 
+    pub const fn is_all_one(&self) -> bool {
+        self.count_ones() == L
+    }
+
+    /// Checks if all bits in the [`Binvec`] are set to `0`.
+    ///
+    /// ---
+    /// # Returns
+    /// `true` if all bits that are using is `0`, otherwise `false`.
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, false);
+    /// assert_eq!(binvec.is_all_zero(), true);
+    ///
+    /// let mut binvec = binvec!(12, true);
+    /// assert_eq!(binvec.is_all_zero(), false);
+    /// binvec.fill(false);
+    /// assert_eq!(binvec.is_all_zero(), true);
+    /// ```
+    /// 
+    pub const fn is_all_zero(&self) -> bool {
+        self.count_zeros() == L
+    }
 }
 
 
@@ -158,7 +377,7 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
 macro_rules! binvec {
     ($len:expr, $initial_value:expr) => {{
         const L: usize = $len;
-        const N: usize = (L + 7) / 8;
+        const N: usize = (L + 7) >> 3; // same as (L + 7) / 8
         Binvec::<L, N>::new($initial_value)
     }};
 }
