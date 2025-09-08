@@ -41,6 +41,7 @@ pub struct Binvec<const L: usize, const N: usize> {
 }
 
 
+// impl
 impl<const L: usize, const N: usize> Binvec<L, N> {
     /// Creates a new [`Binvec`].
     /// 
@@ -69,6 +70,67 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
             0x0000_0000
         };
         Self { inner: [byte; N] }
+    }
+
+    /// Returns the bit value at the given index without performing bounds checking.
+    ///
+    /// ---
+    /// # Safety
+    /// Calling this method with an out-of-bounds index is undefined behavior.
+    ///
+    /// ---
+    /// # Arguments
+    /// - `index`: The bit index to retrieve.
+    ///
+    /// ---
+    /// # Returns
+    /// - `true` if the bit at `index` is 1.
+    /// - `false` if the bit at `index` is 0.
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, true);
+    /// let bit = unsafe { binvec.get_unchecked(5) };
+    /// assert_eq!(bit, true);
+    /// ```
+    /// 
+    pub const unsafe fn get_unchecked(&self, index: usize) -> bool {
+        let byte_index: usize = index >> 3; // same as `index / 8`
+        let bit_offset: usize = index & 0b111; // same as `index % 8`
+        let byte: u8 = self.inner[byte_index];
+        ((byte >> bit_offset) & 1) != 0
+    }
+
+    /// Returns the bit value at the given index with bounds checking.
+    ///
+    /// ---
+    /// # Arguments
+    /// - `index`: The bit index to retrieve.
+    ///
+    /// ---
+    /// # Returns
+    /// - `Some(true)` if the bit at `index` is 1.
+    /// - `Some(false)` if the bit at `index` is 0.
+    /// - `None` if `index` is out of bounds.
+    ///
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, true);
+    /// assert_eq!(binvec.get(5), Some(true));
+    /// assert_eq!(binvec.get(20), None);
+    /// ```
+    /// 
+    pub fn get(&self, index: usize) -> Option<bool> {
+        if index < L {
+            Some(unsafe { self.get_unchecked(index) })
+        } else {
+            None
+        }
     }
 }
 
