@@ -2,5 +2,8 @@
 name = "binvec"
 version = "0.1.0"
 edition = "2024"
+authors = ["Foolkat <cherryjeesoo@gmail.com>"]
+description = "It is a binary vector type developed in Rust to use memory efficiently. It is characterized by using the minimum memory space to store an array of bool values."
+license = "MIT"
 
 [dependencies]
