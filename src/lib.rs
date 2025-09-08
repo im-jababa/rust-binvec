@@ -39,7 +39,6 @@ pub use iter::*;
 /// 
 /// // A binvec storing 12 bits initialized to 0
 /// let mut binvec = binvec!(12, false);
-/// 
 /// ```
 /// 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +92,7 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// assert_eq!(binvec.len(), 12);
     /// ```
     /// 
+    #[inline(always)]
     pub const fn len(&self) -> usize {
         L
     }
@@ -150,6 +150,7 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// assert_eq!(binvec.get(20), None);
     /// ```
     /// 
+    #[inline]
     pub fn get(&self, index: usize) -> Option<bool> {
         if index < L {
             Some(unsafe { self.get_unchecked(index) })
@@ -215,6 +216,7 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// assert_eq!(binvec.set(20, true), Err(error::IndexOutOfBounds));
     /// ```
     /// 
+    #[inline]
     pub fn set(&mut self, index: usize, value: bool) -> Result<(), error::IndexOutOfBounds> {
         if index < L {
             unsafe { self.set_unchecked(index, value); }
@@ -333,6 +335,7 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// assert_eq!(binvec.is_all_one(), true);
     /// ```
     /// 
+    #[inline(always)]
     pub const fn is_all_one(&self) -> bool {
         self.count_ones() == L
     }
@@ -357,6 +360,7 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// assert_eq!(binvec.is_all_zero(), true);
     /// ```
     /// 
+    #[inline(always)]
     pub const fn is_all_zero(&self) -> bool {
         self.count_zeros() == L
     }
@@ -378,6 +382,7 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// }
     /// ```
     /// 
+    #[inline(always)]
     pub fn iter(&self) -> BinvecIter<'_, L, N> {
         BinvecIter::new(self)
     }
