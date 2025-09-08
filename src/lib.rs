@@ -36,6 +36,7 @@
 /// 
 /// ```
 /// 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Binvec<const L: usize, const N: usize> {
     inner: [u8; N],
 }
@@ -63,6 +64,8 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// let binvec = Binvec::<12, 2>::new(false);
     /// ```
     /// 
+    #[deprecated(note = "Use the `binvec!` macro instead.")]
+    #[doc(hidden)]
     pub const fn new(initial_value: bool) -> Self {
         let mut new: Binvec<L, N> = Self { inner: [0x00; N] };
         new.fill(initial_value);
@@ -378,6 +381,7 @@ macro_rules! binvec {
     ($len:expr, $initial_value:expr) => {{
         const L: usize = $len;
         const N: usize = (L + 7) >> 3; // same as (L + 7) / 8
+        #[allow(deprecated)]
         Binvec::<L, N>::new($initial_value)
     }};
 }
