@@ -1,3 +1,9 @@
+pub mod error;
+
+mod iter;
+pub use iter::*;
+
+
 /// A fixed-length array type that stores `0` or `1`.
 /// It uses up to 8 times less memory compared to a [`bool`] array.
 /// 
@@ -206,15 +212,15 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     /// assert_eq!(binvec.set(5, true), Ok(()));
     /// assert_eq!(binvec.get(5), Some(true));
     ///
-    /// assert_eq!(binvec.set(20, true), Err(()));
+    /// assert_eq!(binvec.set(20, true), Err(error::IndexOutOfBounds));
     /// ```
     /// 
-    pub fn set(&mut self, index: usize, value: bool) -> Result<(), ()> {
+    pub fn set(&mut self, index: usize, value: bool) -> Result<(), error::IndexOutOfBounds> {
         if index < L {
             unsafe { self.set_unchecked(index, value); }
             Ok(())
         } else {
-            Err(())
+            Err(error::IndexOutOfBounds)
         }
     }
 
@@ -354,6 +360,38 @@ impl<const L: usize, const N: usize> Binvec<L, N> {
     pub const fn is_all_zero(&self) -> bool {
         self.count_zeros() == L
     }
+
+    /// Returns an iterator over the bits of the [`Binvec`].
+    ///
+    /// ---
+    /// # Returns
+    /// A [`BinvecIter`] that yields each bit as a `bool`.
+    ///
+    /// ---
+    /// # Examples
+    /// ```
+    /// use binvec::*;
+    ///
+    /// let binvec = binvec!(12, true);
+    /// for bit in binvec.iter() {
+    ///     assert_eq!(bit, true);
+    /// }
+    /// ```
+    /// 
+    pub fn iter(&self) -> BinvecIter<'_, L, N> {
+        BinvecIter::new(self)
+    }
+}
+
+
+// impl IntoIterator
+impl<'a, const L: usize, const N: usize> IntoIterator for &'a Binvec<L, N> {
+    type Item = bool;
+    type IntoIter = BinvecIter<'a, L, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
 }
 
 
@@ -384,4 +422,20 @@ macro_rules! binvec {
         #[allow(deprecated)]
         Binvec::<L, N>::new($initial_value)
     }};
+}
+
+
+// impl Display
+impl<const L: usize, const N: usize> core::fmt::Display for Binvec<L, N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "[")?;
+        let mut iter: BinvecIter<'_, L, N> = self.iter();
+        if let Some(first) = iter.next() {
+            write!(f, "{}", if first { "1" } else { "0" })?;
+            for bit in iter {
+                write!(f, ", {}", if bit { "1" } else { "0" })?;
+            }
+        }
+        write!(f, "]")
+    }
 }
